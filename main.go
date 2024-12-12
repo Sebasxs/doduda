@@ -100,7 +100,6 @@ func main() {
 	rootCmd.PersistentFlags().StringP("release", "r", "dofus3", "Which Game release version type to use. Available: 'main', 'beta', 'dofus3'.")
 	rootCmd.PersistentFlags().StringP("output", "o", "./data", "Working folder for output or input.")
 	rootCmd.PersistentFlags().String("manifest", "", "Manifest file path. Empty will download it if it is not found.")
-	rootCmd.PersistentFlags().Int("mount-image-workers", 4, "Number of workers to use for mount image downloading.")
 	rootCmd.PersistentFlags().StringArrayP("ignore", "i", []string{}, "Ignore downloading specific parts. Available: 'languages', 'data', 'images'.")
 	rootCmd.PersistentFlags().BoolP("indent", "I", false, "Indent the JSON output (increases file size)")
 	rootCmd.PersistentFlags().String("dofus-version", "latest", "Specify Dofus version to download. Example: 2.60.0")
@@ -439,11 +438,6 @@ func rootCommand(ccmd *cobra.Command, args []string) {
 
 	dir = parseWd(dir)
 
-	workers, err := ccmd.Flags().GetInt("mount-image-workers")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	ignore, err := ccmd.Flags().GetStringArray("ignore")
 	if err != nil {
 		log.Fatal(err)
@@ -465,7 +459,7 @@ func rootCommand(ccmd *cobra.Command, args []string) {
 	} else {
 		indentation = ""
 	}
-	err = Download(gameRelease, version, dir, clean, fullGame, platform, int(bin), manifest, workers, ignore, indentation, headless)
+	err = Download(gameRelease, version, dir, clean, fullGame, platform, int(bin), manifest, ignore, indentation, headless)
 	if err != nil {
 		log.Fatal(err.Error())
 	}

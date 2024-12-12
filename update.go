@@ -23,7 +23,6 @@ import (
 	"github.com/dofusdude/ankabuffer"
 	"github.com/dofusdude/doduda/ui"
 	"github.com/dofusdude/doduda/unpack"
-	mapping "github.com/dofusdude/dodumap"
 	jsnan "github.com/xhhuango/json"
 )
 
@@ -58,77 +57,6 @@ func Values[M ~map[K]V, K comparable, V any](m M) []V {
 		r = append(r, v)
 	}
 	return r
-}
-
-func DownloadMountsImages(mounts *mapping.JSONGameData, bin int, hashJson *ankabuffer.Manifest, worker int, dir string, headless bool) {
-	arr := Values(mounts.Mounts)
-	workerSlices := PartitionSlice(arr, worker)
-
-	wg := sync.WaitGroup{}
-	for i, workerSlice := range workerSlices {
-		wg.Add(1)
-		go func(workerSlice []mapping.JSONGameMount, dir string, id int) {
-			defer wg.Done()
-			if headless {
-				log.Print(ui.TitleStyle.Render("Mount Worker"), "id", id, "jobs", len(workerSlice), "state", "spawned")
-			}
-			DownloadMountImageWorker(hashJson, bin, "main", dir, workerSlice, headless)
-			if headless {
-				log.Print(ui.TitleStyle.Render("Mount Worker"), "id", id, "jobs", len(workerSlice), "state", "finished")
-			}
-		}(workerSlice, dir, i)
-	}
-	wg.Wait()
-}
-
-func DownloadMountImageWorker(manifest *ankabuffer.Manifest, bin int, fragment string, dir string, workerSlice []mapping.JSONGameMount, headless bool) {
-	workerUpdates := make(chan bool, len(workerSlice))
-	var feedbackWg sync.WaitGroup
-	feedbackWg.Add(1)
-	go func() {
-		defer feedbackWg.Done()
-		ui.Progress("Mount Images", len(workerSlice)*2, workerUpdates, 0, false, headless)
-	}()
-
-	for _, mount := range workerSlice {
-		wg := sync.WaitGroup{}
-
-		wg.Add(1)
-		go func(mountId int, wg *sync.WaitGroup, dir string) {
-			defer func() {
-				defer wg.Done()
-				if isChannelClosed(workerUpdates) {
-					os.Exit(1)
-				}
-				workerUpdates <- true
-			}()
-			var image HashFile
-			image.Filename = fmt.Sprintf("content/gfx/mounts/%d.png", mountId)
-			image.FriendlyName = fmt.Sprintf("%d.png", mountId)
-			outPath := filepath.Join(dir, "img", "mount")
-			_ = DownloadUnpackFiles("Mount Bitmaps", bin, manifest, fragment, []HashFile{image}, dir, outPath, false, "", true, true)
-		}(mount.Id, &wg, dir)
-
-		wg.Add(1)
-		go func(mountId int, wg *sync.WaitGroup, dir string) {
-			defer func() {
-				defer wg.Done()
-				if isChannelClosed(workerUpdates) {
-					os.Exit(1)
-				}
-				workerUpdates <- true
-			}()
-			var image HashFile
-			image.Filename = fmt.Sprintf("content/gfx/mounts/%d.swf", mountId)
-			image.FriendlyName = fmt.Sprintf("%d.swf", mountId)
-			outPath := filepath.Join(dir, "vector", "mount")
-			_ = DownloadUnpackFiles("Mount Vectors", bin, manifest, fragment, []HashFile{image}, dir, outPath, false, "", true, true)
-		}(mount.Id, &wg, dir)
-
-		wg.Wait()
-	}
-
-	feedbackWg.Wait()
 }
 
 func GetLatestLauncherVersion(release string) string {
@@ -237,7 +165,7 @@ func humanFileSize(bytes float64, decimal bool, precision int) string {
 	return fmt.Sprintf("%.*f %s", precision, bytes, units[u])
 }
 
-func Download(releaseChannel string, version string, dir string, clean bool, fullGame bool, platform string, bin int, manifest string, mountsWorker int, ignore []string, indent string, headless bool) error {
+func Download(releaseChannel string, version string, dir string, clean bool, fullGame bool, platform string, bin int, manifest string, ignore []string, indent string, headless bool) error {
 	var ankaManifest ankabuffer.Manifest
 	manifestSearchPath := "manifest.json"
 
