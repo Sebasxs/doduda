@@ -10,7 +10,7 @@ import (
 
 func DownloadItems(hashJson *ankabuffer.Manifest, bin int, version int, dir string, indent string, headless bool) error {
 	outPath := dir
-	outputPath := path.Join(dir, "output")
+	outputPath := path.Join(dir, "data")
 
 	if version == 3 {
 		err := PullImages([]string{"stelzo/doduda-umbu:" + ARCH}, false, headless)
