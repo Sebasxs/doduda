@@ -2,9 +2,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"image/png"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/charmbracelet/log"
@@ -70,9 +74,114 @@ func unpackD2pFolder(title string, inPath string, outPath string, headless bool)
 	wg.Wait()
 }
 
+
+func moveFilesToParentFolder(dir string) error {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	parentDir := filepath.Dir(dir)
+
+	for _, file := range files {
+		filePath := filepath.Join(dir, file.Name())
+		newFilePath := filepath.Join(parentDir, file.Name())
+		err := os.Rename(filePath, newFilePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = os.RemoveAll(dir)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func checkImageDimensions(imagePath string, dim int) (bool, error) {
+	file, err := os.Open(imagePath)
+	if err != nil {
+		log.Error("Error opening file", "err", err)
+		return false, err
+	}
+	defer file.Close()
+
+	img, err := png.DecodeConfig(file)
+	if err != nil {
+		log.Errorf("Error decoding image, skipping %s\n", imagePath)
+		return false, nil
+	}
+
+	return img.Width != dim && img.Height != dim, nil
+}
+
+func isDuplicatedName(filename string) bool {
+	return strings.Contains(filename, "_#")
+}
+
+func cleanImages(dir string, dim int, patternExcluded *regexp.Regexp) error {
+	deletedCount := 0
+	renamedCount := 0
+
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	total := len(files)
+	assetType := strings.Split(dir, "images")[1]
+
+	for _, file := range files {
+		imagePath := filepath.Join(dir, file.Name())
+
+		if file.IsDir() || filepath.Ext(imagePath) != ".png" {
+			return nil
+		}
+
+		fitDimensions, err := checkImageDimensions(imagePath, dim)
+		if err != nil {
+			log.Printf("Error checking dimensions of %s: %v", file.Name(), err)
+			return err
+		}
+
+		if dim > 0 && !fitDimensions {
+			err := os.Remove(imagePath)
+			if err != nil {
+				log.Printf("Error deleting %s: %v", file.Name(), err)
+			} else {
+				deletedCount++
+			}
+		} else if isDuplicatedName(file.Name()) {
+			newName := regexp.MustCompile(`_#\d+`).ReplaceAllString(file.Name(), "")
+			cleanImagePath := filepath.Join(dir, newName)
+
+			_, err := os.Stat(cleanImagePath)
+			fileExists := !os.IsNotExist(err)
+
+			if fileExists && patternExcluded != nil && patternExcluded.MatchString(file.Name()) {
+				return nil
+			}
+
+			err = os.Rename(imagePath, cleanImagePath)
+			if err != nil {
+				log.Printf("Error renaming %s: %v", file.Name(), err)
+			} else {
+				renamedCount++
+			}
+		}
+	}
+	
+	fmt.Printf("Renamed: %d, Deleted: %d from %d in %s\n", renamedCount, deletedCount, total, assetType)
+	return err
+}
+
 func DownloadImagesLauncher(hashJson *ankabuffer.Manifest, bin int, version int, dir string, headless bool) error {
 	inPath := filepath.Join(dir, "tmp")
 	outPath := filepath.Join(dir, "images")
+	monstersPath := filepath.Join(dir, "images", "monsters")
+	uiPath := filepath.Join(dir, "images", "ui")
+	itemsPath := filepath.Join(dir, "images", "items")
 	
 	if version == 2 {
 		fileNames := []HashFile{
@@ -128,65 +237,29 @@ func DownloadImagesLauncher(hashJson *ankabuffer.Manifest, bin int, version int,
 		err = DownloadUnpackFiles("Downloading assets", bin, hashJson, "picto", fileNames, dir, outPath, true, "", headless, false)
 		if err != nil { return err }
 
-		outPathUI := filepath.Join(dir, "images", "ui", "spellstates")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/Spells/spellstate_assets_all.bundle", FriendlyName: "spellstate_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading spell states", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
+		uiPaths := map[string]string{
+			"arena":        "Dofus_Data/StreamingAssets/Content/Picto/UI/arena_assets_all.bundle",
+			"achievements": "Dofus_Data/StreamingAssets/Content/Picto/UI/achievement_assets_all.bundle",
+			"document":     "Dofus_Data/StreamingAssets/Content/Picto/UI/document_assets_all.bundle",
+			"guidebook":    "Dofus_Data/StreamingAssets/Content/Picto/UI/guidebook_assets_all.bundle",
+			"guildrank":    "Dofus_Data/StreamingAssets/Content/Picto/UI/guildrank_assets_all.bundle",
+			"house":        "Dofus_Data/StreamingAssets/Content/Picto/UI/house_assets_all.bundle",
+			"icon":         "Dofus_Data/StreamingAssets/Content/Picto/UI/icon_assets_all.bundle",
+			"illus":        "Dofus_Data/StreamingAssets/Content/Picto/UI/illus_assets_all.bundle",
+			"ornament":     "Dofus_Data/StreamingAssets/Content/Picto/UI/ornament_assets_all.bundle",
+			"spellstates":  "Dofus_Data/StreamingAssets/Content/Picto/Spells/spellstate_assets_all.bundle",
+			"suggestion":   "Dofus_Data/StreamingAssets/Content/Picto/UI/suggestion_assets_all.bundle",
+			// "worldmaps":    "Dofus_Data/StreamingAssets/Content/Picto/Worldmaps/worldmap_assets__4ba03324f4420d542d1ee6d3f566f3d1.bundle",
+		}
 
-		outPathUI = filepath.Join(dir, "images","ui", "achievements")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/achievement_assets_all.bundle", FriendlyName: "achievement_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading achievements", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","arena")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/arena_assets_all.bundle", FriendlyName: "arena_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading arenas", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","document")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/document_assets_all.bundle", FriendlyName: "document_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading documents", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","guidebook")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/guidebook_assets_all.bundle", FriendlyName: "guidebook_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading guidebook", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","guildrank")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/guildrank_assets_all.bundle", FriendlyName: "guildrank_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading guildranks", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","house")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/house_assets_all.bundle", FriendlyName: "house_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading houses", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","icon")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/icon_assets_all.bundle", FriendlyName: "icon_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading icons", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","illus")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/illus_assets_all.bundle", FriendlyName: "illus_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading illus", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","ornament")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/ornament_assets_all.bundle", FriendlyName: "ornament_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading ornaments", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-
-		outPathUI = filepath.Join(dir, "images", "ui","suggestion")
-		fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/UI/suggestion_assets_all.bundle", FriendlyName: "suggestion_images.imagebundle"},}
-		err = DownloadUnpackFiles("Downloading suggestions", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		if err != nil { return err }
-		
-		// outPathUI = filepath.Join(dir, "images", "worldmaps")
-		// fileNames = []HashFile{ {Filename: "Dofus_Data/StreamingAssets/Content/Picto/Worldmaps/worldmap_assets__4ba03324f4420d542d1ee6d3f566f3d1.bundle", FriendlyName: "worldmap_images.imagebundle"},}
-		// err = DownloadUnpackFiles("Downloading worldmaps", bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
-		// if err != nil { return err }
+		for key, path := range uiPaths {
+			outPathUI := filepath.Join(uiPath, key)
+			fileNames := []HashFile{{Filename: path, FriendlyName: key + "_images.imagebundle"}}
+			err = DownloadUnpackFiles("Downloading "+key, bin, hashJson, "picto", fileNames, dir, outPathUI, true, "", headless, false)
+			if err != nil {
+				return err
+			}
+		}
 		
 		feedbacks := make(chan string)
 		
@@ -195,52 +268,110 @@ func DownloadImagesLauncher(hashJson *ankabuffer.Manifest, bin int, version int,
 		go func() {
 			defer feedbackWg.Done()
 			ui.Spinner("Images", feedbacks, false, headless)
-			}()
+		}()
 			
-			defer func() {
+		defer func() {
 			close(feedbacks)
 			feedbackWg.Wait()
-			}()
+		}()
 			
-			feedbacks <- "cleaning"
-			
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "items", "2x"), filepath.Join(dir, "images", "items"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "monsters", "2x"), filepath.Join(dir, "images", "monsters"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "mounts", "big"), filepath.Join(dir, "images", "ui", "mounts"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "spells", "2x"), filepath.Join(dir, "images", "ui", "spells"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "alignments", "2x"), filepath.Join(dir, "images", "ui","alignments"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "challenges", "2x"), filepath.Join(dir, "images", "ui","challenges"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "companions", "2x"), filepath.Join(dir, "images", "ui","companions"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "cosmetics", "2x"), filepath.Join(dir, "images", "ui","cosmetics"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "emblems", "big"), filepath.Join(dir, "images", "ui","emblems"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "emotes", "2x"), filepath.Join(dir, "images", "ui","emotes"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "jobs", "2x"), filepath.Join(dir, "images", "ui","jobs"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "presets", "2x"), filepath.Join(dir, "images", "ui","presets"))
-		if err != nil { return err }
-		err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", "smilies", "2x"), filepath.Join(dir, "images", "ui","smilies"))
-		if err != nil { return err }
+		feedbacks <- "cleaning"
+		
+		renamePaths := map[string]string{
+			"items":                				"items/2x",
+			"monsters":             				"monsters/2x",
+			filepath.Join("ui", "alignments"):  "alignments/2x",
+			filepath.Join("ui", "challenges"):  "challenges/2x",
+			filepath.Join("ui", "companions"):  "companions/2x",
+			filepath.Join("ui", "cosmetics"):   "cosmetics/2x",
+			filepath.Join("ui", "emblems"):     "emblems/big",
+			filepath.Join("ui", "emotes"):      "emotes/2x",
+			filepath.Join("ui", "jobs"):        "jobs/2x",
+			filepath.Join("ui", "mounts"):      "mounts/big",
+			filepath.Join("ui", "presets"):     "presets/2x",
+			filepath.Join("ui", "smilies"):     "smilies/2x",
+			filepath.Join("ui", "spells"):      "spells/2x",
+		}
 
-		err = os.RemoveAll(filepath.Join(outPath, "Assets"))
-		if err != nil { return err }
-		err = os.RemoveAll(filepath.Join(outPath, "monster_images.imagebundle"))
-		if err != nil { return err }
-		err = os.RemoveAll(filepath.Join(outPath, "mount_images.imagebundle"))
-		if err != nil { return err }
-		err = os.RemoveAll(filepath.Join(outPath, "spell_images.imagebundle"))
-		if err != nil { return err }
-		err = os.RemoveAll(filepath.Join(outPath, "spellstate_images.imagebundle"))
-		if err != nil { return err }
+		for key, path := range renamePaths {
+			err = os.Rename(filepath.Join(outPath, "Assets", "BuiltAssets", path), filepath.Join(dir, "images", key))
+			if err != nil {
+				return err
+			}
+		}
+		
+		removePaths := []string{
+			filepath.Join(outPath, "Assets"),
+			filepath.Join(outPath, "monster_images.imagebundle"),
+			filepath.Join(outPath, "mount_images.imagebundle"),
+			filepath.Join(outPath, "spell_images.imagebundle"),
+			filepath.Join(outPath, "spellstate_images.imagebundle"),
+			filepath.Join(outPath, "job_images.imagebundle"),
+			filepath.Join(outPath, "preset_images.imagebundle"),
+			filepath.Join(outPath, "smiley_images.imagebundle"),
+		}
+
+		for _, path := range removePaths {
+			err = os.RemoveAll(path)
+			if err != nil {
+				return err
+			}
+		}
+
+		cleaningTasks := []struct {
+			path    string
+			dim     int
+			exclude *regexp.Regexp
+		}{
+			{itemsPath, 128, nil},
+			{monstersPath, 128, nil},
+			{filepath.Join(uiPath, "achievements"), 58, nil},
+			{filepath.Join(uiPath, "alignments"), 0, nil},
+			{filepath.Join(uiPath, "arena"), 0, regexp.MustCompile(`(left|right|middle)BG`)},
+			{filepath.Join(uiPath, "challenges"), 0, nil},
+			{filepath.Join(uiPath, "companions"), 168, nil},
+			{filepath.Join(uiPath, "cosmetics"), 128, nil},
+			{filepath.Join(uiPath, "document"), 0, nil},
+			{filepath.Join(uiPath, "emblems", "backcontent", "2x"), 0, nil},
+			{filepath.Join(uiPath, "emblems", "outlinealliance", "2x"), 0, nil},
+			{filepath.Join(uiPath, "emblems", "outlineguild", "2x"), 0, nil},
+			{filepath.Join(uiPath, "emblems", "up", "2x"), 0, nil},
+			{filepath.Join(uiPath, "emotes"), 0, nil},
+			{filepath.Join(uiPath, "guidebook"), 0, nil},
+			{filepath.Join(uiPath, "guildrank"), 0, nil},
+			{filepath.Join(uiPath, "house"), 0, nil},
+			{filepath.Join(uiPath, "icon"), 0, nil},
+			{filepath.Join(uiPath, "illus"), 0, regexp.MustCompile(`^\d`)},
+			{filepath.Join(uiPath, "jobs"), 0, nil},
+			{filepath.Join(uiPath, "mounts"), 256, nil},
+			{filepath.Join(uiPath, "ornament"), 0, nil},
+			{filepath.Join(uiPath, "presets"), 96, nil},
+			{filepath.Join(uiPath, "smilies"), 64, nil},
+			{filepath.Join(uiPath, "spells"), 0, nil},
+			{filepath.Join(uiPath, "spellstates"), 0, nil},
+			{filepath.Join(uiPath, "suggestion"), 200, nil},
+		}
+
+		for _, task := range cleaningTasks {
+			err = cleanImages(task.path, task.dim, task.exclude)
+			if err != nil {
+				return err
+			}
+		}
+
+		emblemPaths := []string{
+			filepath.Join(uiPath, "emblems", "backcontent", "2x"),
+			filepath.Join(uiPath, "emblems", "outlinealliance", "2x"),
+			filepath.Join(uiPath, "emblems", "outlineguild", "2x"),
+			filepath.Join(uiPath, "emblems", "up", "2x"),
+		}
+
+		for _, path := range emblemPaths {
+			err = moveFilesToParentFolder(path)
+			if err != nil {
+				return err
+			}
+		}
 
 		return err
 	} else {

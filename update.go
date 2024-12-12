@@ -174,27 +174,28 @@ func touchFileIfNotExists(fileName string) error {
 }
 
 func CreateDataDirectoryStructure(dir string) {
-	os.MkdirAll(fmt.Sprintf("%s/tmp/vector", dir), os.ModePerm)
-	os.MkdirAll(fmt.Sprintf("%s/img/item", dir), os.ModePerm)
-	os.MkdirAll(fmt.Sprintf("%s/img/mount", dir), os.ModePerm)
+	// os.MkdirAll(fmt.Sprintf("%s/tmp/vector", dir), os.ModePerm)
+	// os.MkdirAll(fmt.Sprintf("%s/img/item", dir), os.ModePerm)
+	// os.MkdirAll(fmt.Sprintf("%s/img/mount", dir), os.ModePerm)
 
-	os.MkdirAll(fmt.Sprintf("%s/vector/item", dir), os.ModePerm)
-	os.MkdirAll(fmt.Sprintf("%s/vector/mount", dir), os.ModePerm)
+	// os.MkdirAll(fmt.Sprintf("%s/vector/item", dir), os.ModePerm)
+	// os.MkdirAll(fmt.Sprintf("%s/vector/mount", dir), os.ModePerm)
 
+	os.MkdirAll(fmt.Sprintf("%s/images", dir), os.ModePerm)
 	os.MkdirAll(fmt.Sprintf("%s/languages", dir), os.ModePerm)
 
-	err := touchFileIfNotExists(fmt.Sprintf("%s/img/index.html", dir))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = touchFileIfNotExists(fmt.Sprintf("%s/img/item/index.html", dir))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = touchFileIfNotExists(fmt.Sprintf("%s/img/mount/index.html", dir))
-	if err != nil {
-		log.Fatal(err)
-	}
+	// err := touchFileIfNotExists(fmt.Sprintf("%s/img/index.html", dir))
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// err = touchFileIfNotExists(fmt.Sprintf("%s/img/item/index.html", dir))
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// err = touchFileIfNotExists(fmt.Sprintf("%s/img/mount/index.html", dir))
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 }
 
 func GetReleaseManifest(version string, gameVersionType string, platform string, dir string) ([]byte, error) {
@@ -430,13 +431,13 @@ func Download(releaseChannel string, version string, dir string, clean bool, ful
 		}
 
 		// mountsimages rendering only needed for Dofus 2.x
-		if rawDofusMajorVersion == 2 && !contains(ignore, "mountsimages") && !contains(ignore, "items") {
-			gamedata := mapping.ParseRawData(dir)
-			if !headless {
-				mountsWorker = 1
-			}
-			DownloadMountsImages(gamedata, bin, &ankaManifest, mountsWorker, dir, headless)
-		}
+		// if rawDofusMajorVersion == 2 && !contains(ignore, "mountsimages") && !contains(ignore, "items") {
+		// 	gamedata := mapping.ParseRawData(dir)
+		// 	if !headless {
+		// 		mountsWorker = 1
+		// 	}
+		// 	DownloadMountsImages(gamedata, bin, &ankaManifest, mountsWorker, dir, headless)
+		// }
 
 		os.RemoveAll(fmt.Sprintf("%s/tmp", dir))
 	}
@@ -588,7 +589,12 @@ func UnpackUnityImages(inputDir string, outputDir string, muteSpinner bool, head
 		uid := strconv.Itoa(os.Getuid())
 		gid := strconv.Itoa(os.Getgid())
 		user := uid + ":" + gid
-
+		if uidInt, err := strconv.Atoi(uid); err != nil || uidInt < 0 || uidInt > 2147483647 {
+			user = "0:0" // fallback to root if UID is invalid
+		}
+		if gidInt, err := strconv.Atoi(gid); err != nil || gidInt < 0 || gidInt > 2147483647 {
+			user = "0:0" // fallback to root if GID is invalid
+		}
 		resp, err := cli.ContainerCreate(ctx, &container.Config{
 			Image: imageName,
 			Cmd:   cmd,
