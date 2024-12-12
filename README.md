@@ -1,80 +1,70 @@
 <p align="center">
-  <img src="https://docs.dofusdu.de/logo_cropped.png" width="120">
-  <h3 align="center">doduda</h3>
-  <p align="center">The Open Ankama Launcher Terminal Client for Developers</p>
-  <p align="center"><a href="https://goreportcard.com/report/github.com/dofusdude/doduda"><img src="https://goreportcard.com/badge/github.com/dofusdude/doduda" alt=""></a> <a href="https://github.com/dofusdude/doduda/actions/workflows/tests.yml"><img src="https://github.com/dofusdude/doduda/actions/workflows/tests.yml/badge.svg" alt=""></a>
-  </p>
+  <h3 align="center">DODUDA</h3>
+  <p align="center">Dofus 3 unpacker via terminal</p>
 </p>
 
-Download the latest Dofus 3 version from Ankama and convert the interesting parts to a developer friendly format.
+> [!NOTE]
+> This is a modified version of the original **doduda** tool. All the core functionality belongs to [dofusdude](https://github.com/dofusdude)<br>
+> Modifications include downloading more data and simplified flags.
+
+## Installation
 
 ```bash
-doduda --release beta && doduda map --release beta
+git clone https://github.com/sebasxs/doduda
+cd doduda
+go build
+./doduda # Run the program
 ```
 
 ## Features
 
 See `doduda --help` for all parameters.
 
-### Load
+This version of `doduda` simplifies the download process into three main categories:
 
-Download the latest Dofus version.
+-  **Data:** Includes core game data like items, quests, monsters, etc.
+-  **Images:** All game pictos including items, monsters (low-res), ui, etc.
+   -  Images with multiple resolutions are downloaded at the highest resolution by default.
+   -  Duplicate images resulting from sprite-texture2D parity during unpacking are correctly filtered and organized into appropriate folders.
+-  **Languages:** i18n files for different languages.
 
-<img src="https://vhs.charm.sh/vhs-15sHEeT47mgiZ7vrgnenB2.gif" alt="load example" width="600">
-
-The results are saved to `./data`.
-
-### Map
-
-Make the cryptic data easier to use in apps.
-
-<img src="https://vhs.charm.sh/vhs-3YcvO6NALEaRFoNPu9Jhe2.gif" alt="map example" width="600">
-
-The command assumes that all categories (except images) are already downloaded.
+> [!NOTE]
+> Now all the images and core data are downloaded and not only items, mounts and quests.
 
 ### Watchdog
 
-Listen for new Dofus versions and react to their release.
+The `doduda listen` command enables a watchdog that will listen for new Dofus versions and react to their release.
+This allows you to automate tasks when a new version is released.
 
 <img src="https://vhs.charm.sh/vhs-g7BGgJ5f4iUhuzRhoYzzR.gif" alt="watchdog example" width="600">
 
 You can use that for getting anything that supports webhooks to react to Dofus version updates. Some ideas are:
 
-- [Discord Channels](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
-- [ntfy.sh](https://ntfy.sh) (Push notifications to your phone)
+-  [Discord Channels](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
+-  [ntfy.sh](https://ntfy.sh) (Push notifications to your phone)
 
-### Render
+## Usage
 
-Generate pre-rendered, high resolution `.png` images from the vector files.
-This requires [Docker](https://docs.docker.com/engine/install/) to be installed and running.
+The core functionality of `doduda` remains the same.
 
-<img src="https://vhs.charm.sh/vhs-H3yfHga5lcnzj9UhLyP5C.gif" alt="render example" width="600">
+### New flags
 
-## Installation
+-  `--ignore data`: Skips downloading core game data.
+-  `--ignore images`: Skips downloading all game pictos.
 
-`doduda` is a single binary that you can download and run without dependencies. There are precompiled versions for Linux, macOS and Windows.
+### Removed flags
 
-### Precompiled binaries (recommended)
-
-Get the latest `doduda` binary from the [release](https://github.com/dofusdude/doduda/releases) page.
-
-### Go install (needs [Go](https://go.dev/doc/install) >= 1.21)
-
-You need to have `$GOPATH/bin` in your `$PATH` for this to work, so `export PATH=$PATH:$(go env GOPATH)/bin` if you haven't already.
-
-```bash
-go install github.com/dofusdude/doduda@latest
-```
-
-### Build from source (needs [Go](https://go.dev/doc/install) >= 1.21)
-
-```bash
-git clone https://github.com/dofusdude/doduda
-cd doduda
-go build
-```
+-  `--ignore items`
+-  `--ignore quests`
+-  `--ignore mounts`
+-  `--ignore itemsimages`
+-  `--ignore mountsimages`
+-  `--mount-image-workers`
 
 ## The dofusdude auto-update cycle
+
+> [!NOTE]
+> This section describes the original update pipeline by dofusdude. It is left here for informational purposes as it does not directly relate to changes done in this fork.
 
 This tool is the first step in a pipeline that updates the data on [GitHub](https://github.com/dofusdude/dofus2-main) when a new Dofus version is released.
 
@@ -84,14 +74,11 @@ This tool is the first step in a pipeline that updates the data on [GitHub](http
 
 ## Known Problems
 
-- Run `doduda` with `--headless` in a server environment or automations to avoid "no tty" errors.
-
-- If you get an error regarding a missing Docker socket when running `doduda render`, find out where your `docker.sock` is and link it to the missing path or export your path as `DOCKER_HOST` environment variable `export DOCKER_HOST=unix://<your docker.sock path>`.
+-  Run `doduda` with `--headless` in a server environment or automations to avoid "no tty" errors. This error occurs because the program is trying to access a terminal that doesn't exist.
+-  If you get an error regarding a missing Docker socket when running `doduda render`, find out where your `docker.sock` is and link it to the missing path or export your path as `DOCKER_HOST` environment variable `export DOCKER_HOST=unix://<your docker.sock path>`. Docker requires this socket for communication, so if the program can't find it, this error occurs.
 
 ## Credit
 
-The code in the `unpack` directory is a port of the [PyDofus](https://github.com/balciseri/PyDofus) project to Go. Thanks to balciseri for the work on PyDofus!
+This fork was created solely for personal needs in my own project, [cori](https://github.com/sebasxs/cori). All core functionality and the original project belong to [stelzo](https://github.com/stelzo).
 
-The terminal visualizations are made with [vhs](https://vhs.charm.sh).
-
-Many thanks to Ankama for developing and updating Dofus! All data belongs to them. I just make it more accessible for the developer community.
+This tool is for experimental purposes. All game assets and intellectual property belong to Ankama Games.
