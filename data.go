@@ -8,7 +8,7 @@ import (
 	"github.com/dofusdude/ankabuffer"
 )
 
-func DownloadItems(hashJson *ankabuffer.Manifest, bin int, version int, dir string, indent string, headless bool) error {
+func DownloadGameData(hashJson *ankabuffer.Manifest, bin int, version int, dir string, indent string, headless bool) error {
 	outPath := dir
 	outputPath := path.Join(dir, "data")
 

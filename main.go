@@ -101,7 +101,7 @@ func main() {
 	rootCmd.PersistentFlags().StringP("output", "o", "./data", "Working folder for output or input.")
 	rootCmd.PersistentFlags().String("manifest", "", "Manifest file path. Empty will download it if it is not found.")
 	rootCmd.PersistentFlags().Int("mount-image-workers", 4, "Number of workers to use for mount image downloading.")
-	rootCmd.PersistentFlags().StringArrayP("ignore", "i", []string{}, "Ignore downloading specific parts. Available: 'mounts', 'languages', 'items', 'itemsimages', 'mountsimages', 'quests'.")
+	rootCmd.PersistentFlags().StringArrayP("ignore", "i", []string{}, "Ignore downloading specific parts. Available: 'languages', 'data', 'images'.")
 	rootCmd.PersistentFlags().BoolP("indent", "I", false, "Indent the JSON output (increases file size)")
 	rootCmd.PersistentFlags().String("dofus-version", "latest", "Specify Dofus version to download. Example: 2.60.0")
 
