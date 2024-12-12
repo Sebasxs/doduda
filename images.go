@@ -309,6 +309,7 @@ func DownloadImagesLauncher(hashJson *ankabuffer.Manifest, bin int, version int,
 			filepath.Join(outPath, "job_images.imagebundle"),
 			filepath.Join(outPath, "preset_images.imagebundle"),
 			filepath.Join(outPath, "smiley_images.imagebundle"),
+			filepath.Join(outPath, "emote_images.imagebundle"),
 		}
 
 		for _, path := range removePaths {
