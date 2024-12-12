@@ -174,28 +174,9 @@ func touchFileIfNotExists(fileName string) error {
 }
 
 func CreateDataDirectoryStructure(dir string) {
-	// os.MkdirAll(fmt.Sprintf("%s/tmp/vector", dir), os.ModePerm)
-	// os.MkdirAll(fmt.Sprintf("%s/img/item", dir), os.ModePerm)
-	// os.MkdirAll(fmt.Sprintf("%s/img/mount", dir), os.ModePerm)
-
-	// os.MkdirAll(fmt.Sprintf("%s/vector/item", dir), os.ModePerm)
-	// os.MkdirAll(fmt.Sprintf("%s/vector/mount", dir), os.ModePerm)
-
+	os.MkdirAll(fmt.Sprintf("%s/data", dir), os.ModePerm)
 	os.MkdirAll(fmt.Sprintf("%s/images", dir), os.ModePerm)
 	os.MkdirAll(fmt.Sprintf("%s/languages", dir), os.ModePerm)
-
-	// err := touchFileIfNotExists(fmt.Sprintf("%s/img/index.html", dir))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// err = touchFileIfNotExists(fmt.Sprintf("%s/img/item/index.html", dir))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// err = touchFileIfNotExists(fmt.Sprintf("%s/img/mount/index.html", dir))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 }
 
 func GetReleaseManifest(version string, gameVersionType string, platform string, dir string) ([]byte, error) {
@@ -412,32 +393,17 @@ func Download(releaseChannel string, version string, dir string, clean bool, ful
 			}
 		}
 
-		if !contains(ignore, "items") {
-			if err := DownloadItems(&ankaManifest, bin, rawDofusMajorVersion, dir, indent, headless); err != nil {
+		if !contains(ignore, "data") {
+			if err := DownloadGameData(&ankaManifest, bin, rawDofusMajorVersion, dir, indent, headless); err != nil {
 				log.Fatal(err)
 			}
 		}
 
-		if !contains(ignore, "quests") {
-			if err := DownloadQuests(&ankaManifest, bin, rawDofusMajorVersion, dir, indent, headless); err != nil {
-				log.Fatal(err)
-			}
-		}
-
-		if !contains(ignore, "itemsimages") {
+		if !contains(ignore, "images") {
 			if err := DownloadImagesLauncher(&ankaManifest, bin, rawDofusMajorVersion, dir, headless); err != nil {
 				log.Fatal(err)
 			}
 		}
-
-		// mountsimages rendering only needed for Dofus 2.x
-		// if rawDofusMajorVersion == 2 && !contains(ignore, "mountsimages") && !contains(ignore, "items") {
-		// 	gamedata := mapping.ParseRawData(dir)
-		// 	if !headless {
-		// 		mountsWorker = 1
-		// 	}
-		// 	DownloadMountsImages(gamedata, bin, &ankaManifest, mountsWorker, dir, headless)
-		// }
 
 		os.RemoveAll(fmt.Sprintf("%s/tmp", dir))
 	}
