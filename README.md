@@ -31,18 +31,6 @@ This version of `doduda` simplifies the download process into three main categor
 > [!NOTE]
 > Now all the images and core data are downloaded and not only items, mounts and quests.
 
-### Watchdog
-
-The `doduda listen` command enables a watchdog that will listen for new Dofus versions and react to their release.
-This allows you to automate tasks when a new version is released.
-
-<img src="https://vhs.charm.sh/vhs-g7BGgJ5f4iUhuzRhoYzzR.gif" alt="watchdog example" width="600">
-
-You can use that for getting anything that supports webhooks to react to Dofus version updates. Some ideas are:
-
--  [Discord Channels](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
--  [ntfy.sh](https://ntfy.sh) (Push notifications to your phone)
-
 ## Usage
 
 The core functionality of `doduda` remains the same.
